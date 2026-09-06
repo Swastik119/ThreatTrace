@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/api/client";
 import { getCurrentUser, type CurrentUser } from "@/lib/api/auth";
 import { AppHeader } from "@/components/app-header";
 import styles from "./investigation.module.css";
-import type { AnalystVerdict, AttachmentPayloadAnalysis, EnrichmentResult, Finding, MlAssistance, RelayHop, ScoreExplanation, ThreatClassification, UrlIntelligence } from "@/lib/api/emails";
+import type { AnalystVerdict, AttachmentPayloadAnalysis, EnrichmentResult, Finding, MlAssistance, MlPhishingSignal, RelayHop, ScoreExplanation, ThreatClassification, UrlIntelligence } from "@/lib/api/emails";
 import { RouteMap, type RouteMapPoint } from "@/components/investigation/route-map";
 
 interface Investigation {
@@ -25,6 +25,7 @@ interface Investigation {
     analystVerdict?: AnalystVerdict;
     classification?: ThreatClassification;
     entities?: { emails: string[]; domains: string[]; urls: string[]; ips: string[]; attachments: string[] };
+    ml?: MlPhishingSignal;
     mlAssistance?: MlAssistance;
     payloadAnalysis?: AttachmentPayloadAnalysis[];
   };
@@ -89,6 +90,7 @@ export default function InvestigationPage() {
   const classification = analysis.classification;
   const entities = analysis.entities;
   const ml = analysis.mlAssistance;
+  const mlSignal = analysis.ml;
   const payloads = analysis.payloadAnalysis ?? [];
   const authentication = analysis.authentication ?? { spf: undefined, dkim: undefined, dmarc: undefined };
   const mapPoints = routeMapPoints(relayPath, enrichment?.ips ?? [], analysis.probableOriginIp);
@@ -137,7 +139,7 @@ export default function InvestigationPage() {
           </section></div>}
           {openSection === "score" && <div className={styles.workspaceView}><section className={styles.workspaceCard}><h2>Why this score?</h2>
             {scoreExplanation.length ? scoreExplanation.map((item) => <p className={styles.scoreLine} key={`${item.label}-${item.evidence ?? ""}`}><span>{item.status === "POSITIVE" ? "✓" : item.contribution ? "•" : "○"} {item.label}</span><strong>{item.contribution > 0 ? `+${item.contribution}` : item.contribution}</strong></p>) : <p className="muted">Score explanation is unavailable for this older analysis.</p>}
-            <section className={styles.workspaceSubsection}><h2>ML-assisted calibration</h2>{ml?.available ? <><p className={styles.scoreLine}><span>Deterministic score</span><strong>{ml.deterministicRiskScore ?? "-"}</strong></p><p className={styles.scoreLine}><span>ML score ({ml.modelVersion})</span><strong>{ml.mlRiskScore ?? "-"}</strong></p><p className={styles.scoreLine}><span>ML confidence</span><strong>{ml.mlConfidence !== undefined ? `${Math.round(ml.mlConfidence * 100)}%` : "-"}</strong></p><p className={styles.scoreLine}><span>Uncertainty</span><strong>{ml.uncertainty !== undefined ? `${Math.round(ml.uncertainty * 100)}%` : "-"}</strong></p><p className={styles.scoreLine}><span>Effective weight</span><strong>{ml.effectiveWeight !== undefined ? `${Math.round(ml.effectiveWeight * 100)}%` : "-"}</strong></p>{ml.topContributors?.length ? <><strong className={styles.mlSubtitle}>Top contributors</strong>{ml.topContributors.map((item) => <p className={styles.mlLine} key={`${item.feature}-${item.evidence ?? ""}`}><span>{item.feature.replaceAll("_", " ")}</span><strong>{item.direction === "UP" ? "+" : "-"}{item.impact.toFixed(1)}{item.evidence ? ` · ${item.evidence}` : ""}</strong></p>)}</> : null}</> : <p className="muted">ML inference is unavailable for this analysis{ml?.reason ? ` (${ml.reason})` : ""}.</p>}</section>
+            <section className={styles.workspaceSubsection}><h2>ML-assisted calibration</h2>{mlSignal && <><p className={styles.scoreLine}><span>BERT prediction</span><strong>{mlSignal.prediction.toUpperCase()}</strong></p><p className={styles.scoreLine}><span>Phishing probability</span><strong>{Math.round(mlSignal.phishingProbability * 100)}%</strong></p><p className={styles.scoreLine}><span>Model confidence</span><strong>{Math.round(mlSignal.confidence * 100)}%</strong></p><p className={styles.scoreLine}><span>Model</span><strong>{mlSignal.model}</strong></p></>}{ml?.available ? <><p className={styles.scoreLine}><span>Deterministic score</span><strong>{ml.deterministicRiskScore ?? "-"}</strong></p><p className={styles.scoreLine}><span>BERT score contribution</span><strong>{ml.mlRiskScore !== undefined ? `${ml.mlRiskScore}% signal` : "-"}</strong></p></> : <p className="muted">ML inference is unavailable for this analysis{ml?.reason ? ` (${ml.reason})` : ""}.</p>}</section>
             <section className={styles.workspaceSubsection}><h2>Analyst verdict</h2>{analysis.analystVerdict ? <><h3>{analysis.analystVerdict.headline}</h3><p>{analysis.analystVerdict.assessment}</p><strong>Supporting evidence</strong>{analysis.analystVerdict.supportingEvidence.map((item) => <p key={item}>✓ {item}</p>)}{analysis.analystVerdict.observations.length > 0 && <><strong>Minor observations</strong>{analysis.analystVerdict.observations.map((item) => <p key={item}>• {item}</p>)}</>}<strong>Recommended action</strong><p>{analysis.analystVerdict.recommendedAction}</p></> : <p className="muted">No analyst assessment is available.</p>}</section>
             {classification && <section className={styles.workspaceSubsection}><h2>Threat classification</h2>{Object.entries(classification).map(([key, value]) => <p className={styles.classificationLine} key={key}><span>{key.replaceAll(/([A-Z])/g, " $1")}</span><strong>{Math.round(value * 100)}%</strong></p>)}<p className={styles.classificationNote}>Deterministic signals for triage, not scientifically validated probabilities.</p></section>}
             {entities && <section className={styles.workspaceSubsection}><h2>Extracted entities</h2>{(["emails", "domains", "ips", "urls", "attachments"] as const).map((key) => <div className={styles.entityLine} key={key}><span>{key}</span><strong>{entities[key].length}</strong><details><summary>View values</summary>{entities[key].map((value) => <code key={value}>{value}</code>)}</details></div>)}</section>}

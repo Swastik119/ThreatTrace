@@ -17,6 +17,7 @@ const analysisSchema = new mongoose.Schema<AnalysisResult & { emailId: mongoose.
   analystVerdict: { type: mongoose.Schema.Types.Mixed, required: true },
   classification: { type: mongoose.Schema.Types.Mixed, required: true },
   entities: { type: mongoose.Schema.Types.Mixed, required: true },
+  ml: { type: mongoose.Schema.Types.Mixed },
   mlAssistance: { type: mongoose.Schema.Types.Mixed },
   payloadAnalysis: { type: mongoose.Schema.Types.Mixed },
 }, { timestamps: true });

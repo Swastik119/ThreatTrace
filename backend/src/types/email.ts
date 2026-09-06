@@ -75,6 +75,7 @@ export interface AnalysisResult {
   };
   classification: ThreatClassification;
   entities: ExtractedEntities;
+  ml?: MlPhishingSignal;
   mlAssistance?: MlAssistance;
   payloadAnalysis?: AttachmentPayloadAnalysis[];
 }
@@ -290,4 +291,11 @@ export interface RawAttachment {
   sha256: string;
   sha1: string;
   md5: string;
+}
+
+export interface MlPhishingSignal {
+  prediction: "phishing" | "legitimate";
+  confidence: number;
+  phishingProbability: number;
+  model: string;
 }

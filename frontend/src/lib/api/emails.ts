@@ -137,6 +137,12 @@ export interface MlAssistance {
   latencyMs?: number;
   reason?: string;
 }
+export interface MlPhishingSignal {
+  prediction: "phishing" | "legitimate";
+  confidence: number;
+  phishingProbability: number;
+  model: string;
+}
 
 // ───── Payload Analysis Types ─────
 
