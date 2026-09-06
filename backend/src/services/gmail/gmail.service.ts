@@ -54,3 +54,34 @@ export async function fetchGmailEmail(userId: string, messageId: string): Promis
   if (!result.data.raw) throw new Error("Gmail returned no message content.");
   return parseEml(Buffer.from(result.data.raw, "base64url"));
 }
+
+/**
+ * Gmail's web URL identifies a thread rather than one concrete RFC822 message.
+ * Resolve it through the user's connected Gmail account so analysis still uses
+ * Gmail's original raw message, headers, and attachment bytes.
+ */
+export async function fetchLatestGmailThreadEmail(userId: string, threadId: string) {
+  const gmail = await gmailForUser(userId);
+  const thread = await gmail.users.threads.get({ userId: "me", id: threadId, format: "minimal" });
+  const latestMessage = thread.data.messages?.at(-1);
+  if (!latestMessage?.id) throw new Error("Gmail conversation contains no analyzable messages.");
+  return { messageId: latestMessage.id, email: await fetchGmailEmail(userId, latestMessage.id) };
+}
+
+/**
+ * Gmail's rendered UI exposes an opaque conversation token (for example
+ * FMfcgz...), which is not the Gmail API id. Resolve it using only the visible
+ * sender and subject, then fetch the matching raw message from the connected
+ * Gmail account. Email contents are never accepted from the browser.
+ */
+export async function findGmailMessageByVisibleMetadata(userId: string, input: { sender: string; subject: string }) {
+  const gmail = await gmailForUser(userId);
+  const sender = input.sender.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/)?.[0]?.toLowerCase();
+  if (!sender) throw new Error("Gmail did not expose a usable sender address for this email.");
+  const subject = input.subject.trim().replace(/["\\]/g, "\\$&");
+  if (!subject) throw new Error("Gmail did not expose a usable subject for this email.");
+  const search = await gmail.users.messages.list({ userId: "me", q: `from:${sender} subject:"${subject}"`, maxResults: 10 });
+  const messageId = search.data.messages?.[0]?.id;
+  if (!messageId) throw new Error("ThreatTrace could not find this email in the connected Gmail account.");
+  return { messageId, email: await fetchGmailEmail(userId, messageId) };
+}

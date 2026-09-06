@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { Request, Response } from "express";
 import { env } from "../config/env.js";
-import { createGoogleClient, fetchGmailEmail, getGmailProfile, getGmailStatus, listGmailMessages, saveGmailAccount } from "../services/gmail/gmail.service.js";
+import { createGoogleClient, fetchGmailEmail, fetchLatestGmailThreadEmail, findGmailMessageByVisibleMetadata, getGmailProfile, getGmailStatus, listGmailMessages, saveGmailAccount } from "../services/gmail/gmail.service.js";
 import { createInvestigation } from "../services/analysis/create-investigation.service.js";
 import { completeOnboardingForUser } from "../services/onboarding/onboarding.service.js";
 
@@ -48,6 +48,30 @@ export async function analyzeGmailMessage(request: Request, response: Response) 
   if (!messageId) return response.status(400).json({ error: "A Gmail message ID is required." });
   const normalized = await fetchGmailEmail(request.session.userId!, messageId);
   const result = await createInvestigation(normalized, request.session.userId!, "GMAIL", messageId);
+  await completeOnboardingForUser(request.session.userId!);
+  return response.status(201).json(result);
+}
+
+export async function analyzeGmailThread(request: Request, response: Response) {
+  const threadId = typeof request.params.threadId === "string" ? request.params.threadId : undefined;
+  if (!threadId) return response.status(400).json({ error: "A Gmail conversation ID is required." });
+  const connection = await getGmailStatus(request.session.userId!);
+  if (!connection.connected) return response.status(409).json({ error: "Connect Gmail in ThreatTrace before analyzing messages." });
+  const { messageId, email } = await fetchLatestGmailThreadEmail(request.session.userId!, threadId);
+  const result = await createInvestigation(email, request.session.userId!, "GMAIL", messageId);
+  await completeOnboardingForUser(request.session.userId!);
+  return response.status(201).json(result);
+}
+
+export async function resolveAndAnalyzeGmailMessage(request: Request, response: Response) {
+  const { sender, subject } = request.body as Record<string, unknown>;
+  if (typeof sender !== "string" || typeof subject !== "string" || sender.length > 320 || subject.length > 998) {
+    return response.status(400).json({ error: "A Gmail sender and subject are required." });
+  }
+  const connection = await getGmailStatus(request.session.userId!);
+  if (!connection.connected) return response.status(409).json({ error: "Connect Gmail in ThreatTrace before analyzing messages." });
+  const { messageId, email } = await findGmailMessageByVisibleMetadata(request.session.userId!, { sender, subject });
+  const result = await createInvestigation(email, request.session.userId!, "GMAIL", messageId);
   await completeOnboardingForUser(request.session.userId!);
   return response.status(201).json(result);
 }
