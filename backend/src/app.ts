@@ -24,12 +24,8 @@ export function createApp() {
 
   // Allow the deployed frontend to make credentialed requests
   // to this backend.
-  app.use(
-    cors({
-      origin: env.FRONTEND_ORIGIN,
-      credentials: true,
-    })
-  );
+  const allowedOrigins = [env.FRONTEND_ORIGIN, env.EXTENSION_ORIGIN].filter((origin): origin is string => Boolean(origin));
+  app.use(cors({ origin: allowedOrigins, credentials: true }));
 
   // Store sessions in MongoDB.
   app.use(

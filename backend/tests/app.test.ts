@@ -26,6 +26,16 @@ describe("ThreatTrace API", () => {
     expect(response.status).toBe(401);
   });
 
+  it("protects Gmail thread analysis", async () => {
+    const response = await request(app).post("/api/v1/gmail/threads/abc123/analyze");
+    expect(response.status).toBe(401);
+  });
+
+  it("protects Gmail metadata resolution", async () => {
+    const response = await request(app).post("/api/v1/gmail/messages/resolve-and-analyze").send({ sender: "alerts@example.com", subject: "Test" });
+    expect(response.status).toBe(401);
+  });
+
   it("protects Outlook access", async () => {
     const response = await request(app).get("/api/v1/outlook/status");
     expect(response.status).toBe(401);

@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "ThreatTrace",
+  "version": "0.1.0",
+  "description": "Evidence-first email threat investigations in Gmail.",
+  "permissions": ["sidePanel", "storage", "tabs"],
+  "host_permissions": ["https://mail.google.com/*", "http://localhost:4000/*"],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Open ThreatTrace"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["content/gmail.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

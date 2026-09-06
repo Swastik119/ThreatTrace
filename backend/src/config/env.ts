@@ -4,6 +4,7 @@ import { z } from "zod";
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   FRONTEND_ORIGIN: z.string().url().default("http://localhost:3000"),
+  EXTENSION_ORIGIN: z.string().regex(/^chrome-extension:\/\/[a-p]{32}$/).optional(),
   MONGODB_URI: z.string().min(1).default("mongodb://127.0.0.1:27017/threattrace"),
   MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(10 * 1024 * 1024),
   GOOGLE_CLIENT_ID: z.string().min(1),
