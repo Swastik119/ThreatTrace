@@ -42,14 +42,8 @@ export function createApp() {
 
       cookie: {
         httpOnly: true,
-
-        // Required because the frontend and backend are on
-        // different sites in production.
-        sameSite: "none",
-
-        // Required for SameSite=None cookies.
-        secure: true,
-
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        secure: process.env.NODE_ENV === "production",
         maxAge: 1000 * 60 * 60 * 24 * 7,
       },
     })
