@@ -61,6 +61,15 @@ export async function disconnectOutlook(userId: string) {
 
 interface GraphMessage { id: string; conversationId?: string; subject?: string; receivedDateTime?: string; bodyPreview?: string; from?: { emailAddress?: { address?: string } }; toRecipients?: { emailAddress?: { address?: string } }[]; }
 
+export async function findOutlookMessageByVisibleMetadata(userId: string, input: { sender: string; subject: string }) {
+  const result = await graphRequest<{ value?: GraphMessage[] }>(userId, "/me/mailFolders/inbox/messages?$top=50&$orderby=receivedDateTime%20DESC&$select=id,conversationId,subject,receivedDateTime,bodyPreview,from,toRecipients");
+  const sender = input.sender.trim().toLowerCase();
+  const subject = input.subject.trim().toLowerCase();
+  const message = (result.value ?? []).find((item) => item.subject?.trim().toLowerCase() === subject && item.from?.emailAddress?.address?.trim().toLowerCase() === sender);
+  if (!message?.id) throw new Error("ThreatTrace could not find this email in the connected Outlook account.");
+  return { messageId: message.id, email: await fetchOutlookEmail(userId, message.id) };
+}
+
 export async function listOutlookMessages(userId: string) {
   const result = await graphRequest<{ value?: GraphMessage[] }>(userId, "/me/mailFolders/inbox/messages?$top=25&$orderby=receivedDateTime%20DESC&$select=id,conversationId,subject,receivedDateTime,bodyPreview,from,toRecipients");
   return (result.value ?? []).map((message) => ({ id: message.id, threadId: message.conversationId, from: message.from?.emailAddress?.address, to: message.toRecipients?.map((recipient) => recipient.emailAddress?.address).filter(Boolean).join(", "), subject: message.subject ?? "(no subject)", date: message.receivedDateTime, snippet: message.bodyPreview }));

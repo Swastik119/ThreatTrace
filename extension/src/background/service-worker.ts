@@ -1,4 +1,4 @@
-import { analyzeGmailConversation, ThreatTraceApiError } from "../api/threattrace";
+import { analyzeGmailConversation, analyzeOutlookMessage, ThreatTraceApiError } from "../api/threattrace";
 import type { GmailDiagnostic, InvestigationState } from "../types/analysis";
 import type { ExtensionMessage, ExtensionMessageResponse } from "../types/messages";
 
@@ -26,11 +26,11 @@ async function openSidePanel(tabId?: number) {
 async function startInvestigation(email: Extract<ExtensionMessage, { type: "OPEN_INVESTIGATION" }>['email']) {
   await setState({ status: "loading", email });
   if (!email.sender || !email.subject) {
-    await setState({ status: "error", email, message: "Gmail is still loading this email. Wait a moment for its sender and subject, then retry.", retryable: true });
+    await setState({ status: "error", email, message: `${email.provider === "OUTLOOK" ? "Outlook" : "Gmail"} is still loading this email. Wait a moment for its sender and subject, then retry.`, retryable: true });
     return;
   }
   try {
-    const result = await analyzeGmailConversation(email);
+    const result = email.provider === "OUTLOOK" ? await analyzeOutlookMessage(email) : await analyzeGmailConversation(email);
     await setState({ status: "ready", email, result });
   } catch (error) {
     const message = error instanceof ThreatTraceApiError ? error.message : "Unable to reach ThreatTrace. Check your connection and try again.";
@@ -43,12 +43,12 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => 
 chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendResponse: (response: ExtensionMessageResponse) => void) => {
   void (async () => {
     try {
-      if (message.type === "GMAIL_EMAIL_DETECTED") {
+      if (message.type === "GMAIL_EMAIL_DETECTED" || message.type === "OUTLOOK_EMAIL_DETECTED") {
         await setState({ status: "email-detected", email: message.email });
         sendResponse({ ok: true });
         return;
       }
-      if (message.type === "GMAIL_DIAGNOSTIC") {
+      if (message.type === "GMAIL_DIAGNOSTIC" || message.type === "OUTLOOK_DIAGNOSTIC") {
         await chrome.storage.session.set({ [diagnosticKey]: message.diagnostic });
         sendResponse({ ok: true });
         return;
@@ -62,7 +62,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
       if (message.type === "ANALYZE_CURRENT_EMAIL") {
         const state = await getState();
         const email = "email" in state ? state.email : undefined;
-        if (!email) throw new Error("Open an email in Gmail first.");
+        if (!email) throw new Error("Open an email in Gmail or Outlook first.");
         await startInvestigation(email);
         sendResponse({ ok: true, state: await getState() });
         return;
@@ -74,7 +74,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
       if (message.type === "RETRY_INVESTIGATION") {
         const state = await getState();
         const email = "email" in state ? state.email : undefined;
-        if (!email) throw new Error("Open a Gmail email before retrying.");
+        if (!email) throw new Error("Open a Gmail or Outlook email before retrying.");
         await startInvestigation(email);
         sendResponse({ ok: true, state: await getState() });
         return;

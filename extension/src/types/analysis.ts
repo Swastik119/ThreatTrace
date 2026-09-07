@@ -43,6 +43,15 @@ export interface GmailPageContext {
   url: string;
 }
 
+export interface OutlookPageContext {
+  provider: "OUTLOOK";
+  subject?: string;
+  sender?: string;
+  url: string;
+}
+
+export type EmailPageContext = GmailPageContext | OutlookPageContext;
+
 export interface GmailDiagnostic {
   observedAt: string;
   url: string;
@@ -55,7 +64,7 @@ export interface GmailDiagnostic {
 
 export type InvestigationState =
   | { status: "idle" }
-  | { status: "email-detected"; email: GmailPageContext }
-  | { status: "loading"; email: GmailPageContext }
-  | { status: "ready"; email: GmailPageContext; result: InvestigationResult }
-  | { status: "error"; email?: GmailPageContext; message: string; retryable: boolean };
+  | { status: "email-detected"; email: EmailPageContext }
+  | { status: "loading"; email: EmailPageContext }
+  | { status: "ready"; email: EmailPageContext; result: InvestigationResult }
+  | { status: "error"; email?: EmailPageContext; message: string; retryable: boolean };

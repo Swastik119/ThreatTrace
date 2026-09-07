@@ -15,7 +15,8 @@ export default defineConfig({
         popup: resolve(root, "popup.html"),
         sidepanel: resolve(root, "sidepanel.html"),
         "background/service-worker": resolve(root, "src/background/service-worker.ts"),
-        "content/gmail": resolve(root, "src/content/gmail.ts")
+        "content/gmail": resolve(root, "src/content/gmail.ts"),
+        "content/outlook": resolve(root, "src/content/outlook.ts")
       },
       output: {
         entryFileNames: "[name].js",

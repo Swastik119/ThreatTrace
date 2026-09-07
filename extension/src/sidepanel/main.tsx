@@ -13,8 +13,8 @@ function colorFor(value: string) {
   return "#087f78";
 }
 
-function Header({ ready = false }: { ready?: boolean }) {
-  return <header className={styles.header}><div className={styles.brand}><span className={styles.brandMark}>◈</span><span className={styles.brandText}><strong>THREATTRACE</strong><small>EVIDENCE FIRST</small></span></div><span className={styles.status}>{ready ? "ANALYSIS READY" : "GMAIL"}</span></header>;
+function Header({ ready = false, provider }: { ready?: boolean; provider?: "GMAIL" | "OUTLOOK" }) {
+  return <header className={styles.header}><div className={styles.brand}><span className={styles.brandMark}>◈</span><span className={styles.brandText}><strong>THREATTRACE</strong><small>EVIDENCE FIRST</small></span></div><span className={styles.status}>{ready ? "ANALYSIS READY" : provider ?? "MAIL"}</span></header>;
 }
 
 function EmailCard({ subject, sender }: { subject?: string; sender?: string }) {
@@ -60,11 +60,13 @@ function SidePanel() {
   const connect = async () => { await chrome.tabs.create({ url: `${webUrl}/connections` }); };
   const openFull = async () => { if (state.status === "ready") await chrome.tabs.create({ url: `${webUrl}/investigations/${state.result.id}` }); };
 
+  const provider = "email" in state ? state.email?.provider : undefined;
+  const providerName = provider === "OUTLOOK" ? "Outlook" : "Gmail";
   if (state.status === "ready") return <div className={styles.shell}><ReadyView state={state} openFull={() => void openFull()} /></div>;
-  if (state.status === "loading") return <div className={styles.shell}><Header /><main className={styles.content}><div className={styles.loadingCard}><div className={styles.scanner} /><h1>Investigating this email</h1><p>ThreatTrace is collecting evidence from the original message.</p><div className={styles.checks}><span>✓ Email structure</span><span>✓ Sender and authentication</span><span>◌ URLs and infrastructure</span><span>◌ Attachment evidence</span></div></div></main></div>;
-  if (state.status === "email-detected") return <div className={styles.shell}><Header /><main className={styles.content}><EmailCard subject={state.email.subject} sender={state.email.sender} /><button className={styles.primaryButton} onClick={() => void analyze()}>🛡 Analyze this email</button><p className={styles.helper}>ThreatTrace will inspect the original message through your connected Gmail account. No email content is sent from the browser.</p></main></div>;
-  if (state.status === "error") return <div className={styles.shell}><Header /><main className={styles.content}><div className={styles.error}><h1>Investigation needs attention</h1><p>{state.message}</p><button className={styles.primaryButton} onClick={() => void connect()}>Sign in / connect Gmail</button><button className={styles.secondaryButton} onClick={() => void retry()}>Try again</button></div></main></div>;
-  return <div className={styles.shell}><Header /><main className={styles.content}><div className={styles.loadingCard}><div className={styles.brandMark} style={{ margin: "0 auto 14px" }}>◈</div><h1>Ready when you are</h1><p>Open an email in Gmail. ThreatTrace will recognize it automatically.</p></div><details className={styles.debug}><summary>Debug information</summary><pre>{JSON.stringify(diagnostic ?? "No Gmail email detected yet", null, 2)}</pre></details></main></div>;
+  if (state.status === "loading") return <div className={styles.shell}><Header provider={provider} /><main className={styles.content}><div className={styles.loadingCard}><div className={styles.scanner} /><h1>Investigating this email</h1><p>ThreatTrace is collecting evidence from the original message.</p><div className={styles.checks}><span>✓ Email structure</span><span>✓ Sender and authentication</span><span>◌ URLs and infrastructure</span><span>◌ Attachment evidence</span></div></div></main></div>;
+  if (state.status === "email-detected") return <div className={styles.shell}><Header provider={state.email.provider} /><main className={styles.content}><EmailCard subject={state.email.subject} sender={state.email.sender} /><button className={styles.primaryButton} onClick={() => void analyze()}>🛡 Analyze this email</button><p className={styles.helper}>ThreatTrace will inspect the original message through your connected {providerName} account. No email content is sent from the browser.</p></main></div>;
+  if (state.status === "error") return <div className={styles.shell}><Header provider={provider} /><main className={styles.content}><div className={styles.error}><h1>Investigation needs attention</h1><p>{state.message}</p><button className={styles.primaryButton} onClick={() => void connect()}>Sign in / connect {providerName}</button><button className={styles.secondaryButton} onClick={() => void retry()}>Try again</button></div></main></div>;
+  return <div className={styles.shell}><Header /><main className={styles.content}><div className={styles.loadingCard}><div className={styles.brandMark} style={{ margin: "0 auto 14px" }}>◈</div><h1>Ready when you are</h1><p>Open an email in Gmail or Outlook. ThreatTrace will recognize it automatically.</p></div><details className={styles.debug}><summary>Debug information</summary><pre>{JSON.stringify(diagnostic ?? "No email detected yet", null, 2)}</pre></details></main></div>;
 }
 
 createRoot(document.getElementById("root")!).render(<SidePanel />);
