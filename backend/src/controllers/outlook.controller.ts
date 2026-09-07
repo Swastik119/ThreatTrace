@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import type { Request, Response } from "express";
 import { env } from "../config/env.js";
 import { createInvestigation } from "../services/analysis/create-investigation.service.js";
-import { createMicrosoftClient, fetchOutlookEmail, getOutlookAuthorizationUrl, getOutlookStatus, listOutlookMessages, saveOutlookAccount } from "../services/outlook/outlook.service.js";
+import { createMicrosoftClient, disconnectOutlook, fetchOutlookEmail, getOutlookAuthorizationUrl, getOutlookStatus, listOutlookMessages, saveOutlookAccount } from "../services/outlook/outlook.service.js";
 import { completeOnboardingForUser } from "../services/onboarding/onboarding.service.js";
 
 export async function connectOutlook(request: Request, response: Response) {
@@ -27,6 +27,11 @@ export async function completeOutlookConnection(request: Request, response: Resp
 }
 
 export async function getOutlookConnectionStatus(request: Request, response: Response) { return response.json(await getOutlookStatus(request.session.userId!)); }
+
+export async function disconnectOutlookAccount(request: Request, response: Response) {
+  await disconnectOutlook(request.session.userId!);
+  return response.status(204).send();
+}
 
 export async function getOutlookMessages(request: Request, response: Response) { return response.json(await listOutlookMessages(request.session.userId!)); }
 

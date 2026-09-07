@@ -55,6 +55,10 @@ export async function getOutlookStatus(userId: string) {
   return account ? { connected: true, email: account.email, scopes: account.scopes } : { connected: false };
 }
 
+export async function disconnectOutlook(userId: string) {
+  await OutlookAccountModel.deleteOne({ userId });
+}
+
 interface GraphMessage { id: string; conversationId?: string; subject?: string; receivedDateTime?: string; bodyPreview?: string; from?: { emailAddress?: { address?: string } }; toRecipients?: { emailAddress?: { address?: string } }[]; }
 
 export async function listOutlookMessages(userId: string) {

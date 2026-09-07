@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { Request, Response } from "express";
 import { env } from "../config/env.js";
-import { createGoogleClient, fetchGmailEmail, fetchLatestGmailThreadEmail, findGmailMessageByVisibleMetadata, getGmailProfile, getGmailStatus, listGmailMessages, saveGmailAccount } from "../services/gmail/gmail.service.js";
+import { createGoogleClient, disconnectGmail, fetchGmailEmail, fetchLatestGmailThreadEmail, findGmailMessageByVisibleMetadata, getGmailProfile, getGmailStatus, listGmailMessages, saveGmailAccount } from "../services/gmail/gmail.service.js";
 import { createInvestigation } from "../services/analysis/create-investigation.service.js";
 import { completeOnboardingForUser } from "../services/onboarding/onboarding.service.js";
 
@@ -33,6 +33,11 @@ export async function completeGmailConnection(request: Request, response: Respon
 }
 
 export async function getGmailConnectionStatus(request: Request, response: Response) { return response.json(await getGmailStatus(request.session.userId!)); }
+
+export async function disconnectGmailAccount(request: Request, response: Response) {
+  await disconnectGmail(request.session.userId!);
+  return response.status(204).send();
+}
 
 export async function getGmailMessages(request: Request, response: Response) {
   try { return response.json(await listGmailMessages(request.session.userId!)); }

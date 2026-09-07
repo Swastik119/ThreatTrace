@@ -6,6 +6,12 @@ import { UserModel } from "../models/User.js";
 import crypto from "node:crypto";
 import { createMicrosoftClient, getOutlookAuthorizationUrl } from "../services/outlook/outlook.service.js";
 import { uploadAvatar } from "../services/storage/cloudinary.service.js";
+import { GmailAccountModel } from "../models/GmailAccount.js";
+import { OutlookAccountModel } from "../models/OutlookAccount.js";
+import { EmailModel } from "../models/Email.js";
+import { InvestigationModel } from "../models/Investigation.js";
+import { AnalysisModel } from "../models/Analysis.js";
+import { CopilotConversationModel } from "../models/CopilotConversation.js";
 
 const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET, env.GOOGLE_CALLBACK_URL);
 
@@ -164,6 +170,28 @@ export async function updateAvatar(request: Request, response: Response) {
   const user = await UserModel.findByIdAndUpdate(request.session.userId, { avatarUrl: uploaded.secureUrl }, { new: true }).select("email name username avatarUrl emailVerified googleId microsoftId onboarding").lean();
   if (!user) return response.status(404).json({ error: "User not found." });
   return response.json({ ...user, onboarding: onboardingResponse(user.onboarding) });
+}
+
+export async function deleteAccount(request: Request, response: Response, next: (error?: unknown) => void) {
+  const userId = request.session.userId!;
+  const emails = await EmailModel.find({ userId }).select("_id").lean();
+  const emailIds = emails.map((email) => email._id);
+  const investigations = await InvestigationModel.find({ userId }).select("analysisId").lean();
+  const analysisIds = investigations.map((investigation) => investigation.analysisId);
+  await Promise.all([
+    GmailAccountModel.deleteOne({ userId }),
+    OutlookAccountModel.deleteOne({ userId }),
+    CopilotConversationModel.deleteMany({ userId }),
+    InvestigationModel.deleteMany({ userId }),
+    AnalysisModel.deleteMany({ _id: { $in: analysisIds } }),
+    EmailModel.deleteMany({ _id: { $in: emailIds } }),
+  ]);
+  await UserModel.deleteOne({ _id: userId });
+  return request.session.destroy((error) => {
+    if (error) return next(error);
+    response.clearCookie("connect.sid");
+    return response.status(204).send();
+  });
 }
 
 export function logout(request: Request, response: Response, next: (error?: unknown) => void) {

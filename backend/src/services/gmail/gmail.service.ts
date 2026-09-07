@@ -35,6 +35,14 @@ async function gmailForUser(userId: string) {
 
 export async function getGmailStatus(userId: string) { const account = await GmailAccountModel.findOne({ userId }).select("email scopes updatedAt").lean(); return account ? { connected: true, email: account.email, scopes: account.scopes } : { connected: false }; }
 
+export async function disconnectGmail(userId: string) {
+  const account = await GmailAccountModel.findOne({ userId }).select("refreshToken").lean();
+  if (!account) return;
+  const client = createGoogleClient();
+  try { await client.revokeToken(decryptSecret(account.refreshToken)); } catch { /* The local credential is still removed if Google revocation is unavailable. */ }
+  await GmailAccountModel.deleteOne({ userId });
+}
+
 export async function listGmailMessages(userId: string) {
   const gmail = await gmailForUser(userId);
   const result = await gmail.users.messages.list({ userId: "me", maxResults: 25, q: "-in:trash" });

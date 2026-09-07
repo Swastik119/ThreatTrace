@@ -54,3 +54,7 @@ export function updateAvatar(file: File) {
   formData.append("avatar", file);
   return apiRequest<CurrentUser>("/api/v1/auth/profile/avatar", { method: "PATCH", body: formData });
 }
+
+export function deleteAccount() {
+  return apiRequest<void>("/api/v1/auth/account", { method: "DELETE" });
+}
