@@ -28,7 +28,7 @@ export async function startGmailWatch(account: GmailAccount, options: { preserve
       gmailAuthErrorAt: null,
     } },
   );
-  console.info(JSON.stringify({ event: options.preserveHistoryId ? "WATCH_RENEWED" : "WATCH_CREATED", gmailAccountId: account._id.toString(), historyId: state.historyId, expiration: state.expiration.toISOString() }));
+  console.info(JSON.stringify({ event: options.preserveHistoryId ? "WATCH_RENEWED" : "WATCH_CREATED", gmailAccountId: account._id.toString(), gmailAddress: account.email, topicName: env.GMAIL_PUBSUB_TOPIC, historyId: state.historyId, expiration: state.expiration.toISOString() }));
   return state;
 }
 
