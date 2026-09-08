@@ -38,4 +38,13 @@ describe("Gmail Pub/Sub webhook", () => {
     expect(result.statusCode).toBe(200);
     expect(enqueue).toHaveBeenCalledWith({ emailAddress: "analyst@gmail.com", historyId: "123" });
   });
+
+  it("accepts Gmail's numeric history ID representation", async () => {
+    verify.mockResolvedValueOnce({});
+    const data = Buffer.from(JSON.stringify({ emailAddress: "analyst@gmail.com", historyId: 123 })).toString("base64");
+    const { result, response } = responseRecorder();
+    await gmailPubSubWebhook({ header: () => "Bearer token", body: { message: { data } } } as never, response as never);
+    expect(result.statusCode).toBe(200);
+    expect(enqueue).toHaveBeenCalledWith({ emailAddress: "analyst@gmail.com", historyId: "123" });
+  });
 });
