@@ -6,8 +6,11 @@ import { AppHeader } from "@/components/app-header";
 import { getCurrentUser, type CurrentUser } from "@/lib/api/auth";
 import {
   getGmailStatus,
+  getGmailRealtimeAnalysisStatus,
   gmailConnectUrl,
+  setGmailRealtimeAnalysis,
   type GmailStatus,
+  type GmailRealtimeAnalysisStatus,
 } from "@/lib/api/gmail";
 import {
   getOutlookStatus,
@@ -20,13 +23,16 @@ export default function ConnectionsPage() {
   const router = useRouter();
   const [user, setUser] = useState<CurrentUser>();
   const [gmail, setGmail] = useState<GmailStatus>();
+  const [realtime, setRealtime] = useState<GmailRealtimeAnalysisStatus>();
+  const [realtimeBusy, setRealtimeBusy] = useState(false);
   const [outlook, setOutlook] = useState<OutlookStatus>();
   const [error, setError] = useState("");
   useEffect(() => {
-    Promise.all([getCurrentUser(), getGmailStatus(), getOutlookStatus()])
-      .then(([currentUser, gmailStatus, outlookStatus]) => {
+    Promise.all([getCurrentUser(), getGmailStatus(), getGmailRealtimeAnalysisStatus(), getOutlookStatus()])
+      .then(([currentUser, gmailStatus, realtimeStatus, outlookStatus]) => {
         setUser(currentUser);
         setGmail(gmailStatus);
+        setRealtime(realtimeStatus);
         setOutlook(outlookStatus);
       })
       .catch((reason: unknown) => {
@@ -43,6 +49,13 @@ export default function ConnectionsPage() {
           );
       });
   }, [router]);
+  async function toggleRealtimeAnalysis(enabled: boolean) {
+    setRealtimeBusy(true);
+    setError("");
+    try { setRealtime(await setGmailRealtimeAnalysis(enabled)); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to update real-time analysis."); }
+    finally { setRealtimeBusy(false); }
+  }
   const providers = [
     {
       name: "Gmail",
@@ -103,9 +116,16 @@ export default function ConnectionsPage() {
             </div>
             <p className={styles.note}>{provider.note}</p>
             {provider.status?.connected ? (
-              <span className={styles.scope}>
-                CONNECTED · {provider.status.scopes?.length ?? 0} PERMISSIONS
-              </span>
+              <>
+                <span className={styles.scope}>
+                  CONNECTED · {provider.status.scopes?.length ?? 0} PERMISSIONS
+                </span>
+                {provider.name === "Gmail" && <label className={styles.realtimeToggle}>
+                  <input type="checkbox" checked={Boolean(realtime?.enabled)} disabled={realtimeBusy} onChange={(event) => void toggleRealtimeAnalysis(event.target.checked)} />
+                  <span>Enable real-time threat analysis</span>
+                </label>}
+                {provider.name === "Gmail" && realtime?.enabled && !realtime.watchActive && <p className={styles.watchWarning}>Watch renewal is pending.</p>}
+              </>
             ) : (
               <a className={styles.connect} href={provider.connect}>
                 Connect {provider.name}

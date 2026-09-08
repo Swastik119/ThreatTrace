@@ -4,6 +4,8 @@ import { env } from "../config/env.js";
 import { createGoogleClient, disconnectGmail, fetchGmailEmail, fetchLatestGmailThreadEmail, findGmailMessageByVisibleMetadata, getGmailProfile, getGmailStatus, listGmailMessages, saveGmailAccount } from "../services/gmail/gmail.service.js";
 import { createInvestigation } from "../services/analysis/create-investigation.service.js";
 import { completeOnboardingForUser } from "../services/onboarding/onboarding.service.js";
+import { GmailAccountModel } from "../models/GmailAccount.js";
+import { startGmailWatch, stopGmailWatch } from "../services/gmail/gmail-watch.service.js";
 
 export function connectGmail(request: Request, response: Response) {
   const state = crypto.randomUUID();
@@ -33,6 +35,27 @@ export async function completeGmailConnection(request: Request, response: Respon
 }
 
 export async function getGmailConnectionStatus(request: Request, response: Response) { return response.json(await getGmailStatus(request.session.userId!)); }
+
+export async function getRealtimeAnalysisStatus(request: Request, response: Response) {
+  const account = await GmailAccountModel.findOne({ userId: request.session.userId }).select("autoAnalysisEnabled gmailWatchExpiration gmailWatchHistoryId").lean();
+  if (!account) return response.json({ enabled: false, watchActive: false });
+  const expiration = account.gmailWatchExpiration ?? undefined;
+  return response.json({ enabled: Boolean(account.autoAnalysisEnabled), watchExpiration: expiration, watchActive: Boolean(account.autoAnalysisEnabled && expiration && new Date(expiration).getTime() > Date.now()) });
+}
+
+export async function setRealtimeAnalysis(request: Request, response: Response) {
+  const { enabled } = request.body as { enabled?: unknown };
+  if (typeof enabled !== "boolean") return response.status(400).json({ error: "enabled must be a boolean." });
+  const account = await GmailAccountModel.findOne({ userId: request.session.userId });
+  if (!account) return response.status(404).json({ error: "Connect Gmail before enabling real-time analysis." });
+  if (enabled) {
+    if (!account.refreshToken) return response.status(409).json({ error: "Gmail connection has no refresh token. Reconnect Gmail." });
+    const state = await startGmailWatch(account);
+    return response.json({ enabled: true, watchExpiration: state.expiration.toISOString(), historyId: state.historyId });
+  }
+  await stopGmailWatch(account);
+  return response.json({ enabled: false });
+}
 
 export async function disconnectGmailAccount(request: Request, response: Response) {
   await disconnectGmail(request.session.userId!);

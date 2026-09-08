@@ -1,6 +1,9 @@
 import mongoose from "mongoose";
 import { env } from "./env.js";
 import { UserModel } from "../models/User.js";
+import { GmailAccountModel } from "../models/GmailAccount.js";
+import { GmailProcessedMessageModel } from "../models/GmailProcessedMessage.js";
+import { AlertModel } from "../models/Alert.js";
 
 async function migrateLegacyUsers(): Promise<void> {
   const users = await UserModel.find({ $or: [{ username: { $exists: false } }, { username: null }, { username: "" }] }).select("_id email").lean();
@@ -36,8 +39,19 @@ async function migrateOptionalProviderIndexes(): Promise<void> {
   await UserModel.createIndexes();
 }
 
+/** Safe, additive migration for existing Gmail connections and new indexes. */
+async function migrateGmailRealtimeAnalysis(): Promise<void> {
+  await GmailAccountModel.updateMany({ autoAnalysisEnabled: { $exists: false } }, { $set: { autoAnalysisEnabled: false } });
+  await Promise.all([
+    GmailAccountModel.createIndexes(),
+    GmailProcessedMessageModel.createIndexes(),
+    AlertModel.createIndexes(),
+  ]);
+}
+
 export async function connectDatabase(): Promise<void> {
   await mongoose.connect(env.MONGODB_URI);
   await migrateLegacyUsers();
   await migrateOptionalProviderIndexes();
+  await migrateGmailRealtimeAnalysis();
 }

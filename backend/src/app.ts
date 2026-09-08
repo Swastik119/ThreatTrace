@@ -12,6 +12,7 @@ import { gmailRouter } from "./routes/gmail.routes.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { outlookRouter } from "./routes/outlook.routes.js";
 import { copilotRouter } from "./routes/copilot.routes.js";
+import { gmailWebhookRouter } from "./routes/gmail-webhook.routes.js";
 
 export function createApp() {
   const app = express();
@@ -26,6 +27,12 @@ export function createApp() {
   // to this backend.
   const allowedOrigins = [env.FRONTEND_ORIGIN, env.EXTENSION_ORIGIN].filter((origin): origin is string => Boolean(origin));
   app.use(cors({ origin: allowedOrigins, credentials: true }));
+
+  app.use(express.json());
+
+  // Public server-to-server endpoint; its route verifies the Pub/Sub OIDC
+  // token and intentionally does not use browser session authentication.
+  app.use("/api/v1/webhooks", gmailWebhookRouter);
 
   // Store sessions in MongoDB.
   app.use(
@@ -48,8 +55,6 @@ export function createApp() {
       },
     })
   );
-
-  app.use(express.json());
 
   app.get("/health", (_request, response) =>
     response.json({ status: "ok" })

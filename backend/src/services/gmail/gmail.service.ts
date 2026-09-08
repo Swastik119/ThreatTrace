@@ -25,12 +25,16 @@ export async function saveGmailAccount(userId: string, tokens: { refresh_token?:
   }, { upsert: true, returnDocument: 'after' });
 }
 
-async function gmailForUser(userId: string) {
-  const account = await GmailAccountModel.findOne({ userId });
-  if (!account) throw new Error("Connect Gmail before requesting messages.");
+export async function gmailForAccount(account: { refreshToken: string }) {
   const client = createGoogleClient();
   client.setCredentials({ refresh_token: decryptSecret(account.refreshToken) });
   return google.gmail({ version: "v1", auth: client });
+}
+
+async function gmailForUser(userId: string) {
+  const account = await GmailAccountModel.findOne({ userId });
+  if (!account) throw new Error("Connect Gmail before requesting messages.");
+  return gmailForAccount(account);
 }
 
 export async function getGmailStatus(userId: string) { const account = await GmailAccountModel.findOne({ userId }).select("email scopes updatedAt").lean(); return account ? { connected: true, email: account.email, scopes: account.scopes } : { connected: false }; }
