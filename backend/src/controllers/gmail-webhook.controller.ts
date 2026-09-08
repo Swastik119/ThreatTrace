@@ -18,9 +18,13 @@ export async function gmailPubSubWebhook(request: Request, response: Response) {
   if (typeof body?.message?.data !== "string") return response.status(400).json({ error: "Malformed Pub/Sub payload." });
   try {
     const notification = JSON.parse(decodeBase64(body.message.data)) as { emailAddress?: unknown; historyId?: unknown };
-    if (typeof notification.emailAddress !== "string" || !notification.emailAddress || typeof notification.historyId !== "string" || !notification.historyId) throw new Error("Malformed Gmail notification.");
-    console.info(JSON.stringify({ event: "PUBSUB_NOTIFICATION_RECEIVED", emailAddress: notification.emailAddress, notificationHistoryId: notification.historyId, messageId: typeof body.message.messageId === "string" ? body.message.messageId : undefined }));
-    enqueueGmailNotification({ emailAddress: notification.emailAddress, historyId: notification.historyId });
+    // Gmail's push example historically showed a string, but actual Gmail
+    // notifications commonly encode the 64-bit history ID as a JSON number.
+    // Normalize both representations before using it as the persistent cursor.
+    const historyId = typeof notification.historyId === "string" ? notification.historyId : typeof notification.historyId === "number" && Number.isSafeInteger(notification.historyId) ? String(notification.historyId) : undefined;
+    if (typeof notification.emailAddress !== "string" || !notification.emailAddress || !historyId) throw new Error("Malformed Gmail notification.");
+    console.info(JSON.stringify({ event: "PUBSUB_NOTIFICATION_RECEIVED", emailAddress: notification.emailAddress, notificationHistoryId: historyId, messageId: typeof body.message.messageId === "string" ? body.message.messageId : undefined }));
+    enqueueGmailNotification({ emailAddress: notification.emailAddress, historyId });
     return response.status(200).json({ accepted: true });
   } catch {
     return response.status(400).json({ error: "Malformed Pub/Sub payload." });
