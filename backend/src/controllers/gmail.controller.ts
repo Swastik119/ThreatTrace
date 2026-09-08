@@ -51,7 +51,7 @@ export async function setRealtimeAnalysis(request: Request, response: Response) 
   if (enabled) {
     if (!account.refreshToken) return response.status(409).json({ error: "Gmail connection has no refresh token. Reconnect Gmail." });
     const state = await startGmailWatch(account);
-    return response.json({ enabled: true, watchExpiration: state.expiration.toISOString(), historyId: state.historyId });
+    return response.json({ enabled: true, watchActive: true, watchExpiration: state.expiration.toISOString(), historyId: state.historyId });
   }
   await stopGmailWatch(account);
   return response.json({ enabled: false });
